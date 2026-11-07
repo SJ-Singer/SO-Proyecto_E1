@@ -28,3 +28,13 @@ void cleanupProcesses() {
     }
     process_table.clear();
 }
+
+// Configuración de Hilos POSIX y Cerrojos Mutex
+bool system_running = true;
+bool cpu_running = false;
+
+void addProcessToSystem(PCB* proc) {
+    pthread_mutex_lock(&system_mutex);
+    process_table.push_back(proc);
+    pthread_mutex_unlock(&system_mutex);
+}

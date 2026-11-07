@@ -31,4 +31,11 @@ void cleanupProcesses();
 extern bool is_simulation_running;
 extern int simulation_speed_ms;
 
+
+extern bool system_running; // Controla si la aplicación sigue viva (false con exit)
+extern bool cpu_running;    // Controla si la CPU está ejecutando ticks (start/pause)
+
+// Funciones thread-safe para manipular la tabla de procesos protegida con mutex
+void addProcessToSystem(PCB* proc);
+
 #endif // GLOBALS_H
