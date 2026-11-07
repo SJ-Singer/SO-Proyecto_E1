@@ -6,6 +6,9 @@
 std::vector<PCB*> process_table;
 int next_pid = 1;
 int clock_ticks = 0;
+// Variables de control de la simulación (Para Shell CLI)
+bool is_simulation_running = false; // El motor inicia pausado
+int simulation_speed_ms = 1000;     // Velocidad por defecto: 1000 ms (1 seg)
 
 // Inicialización estática del Cerrojo Mutex POSIX
 pthread_mutex_t system_mutex = PTHREAD_MUTEX_INITIALIZER;

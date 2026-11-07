@@ -27,4 +27,8 @@ PCB* findProcessByPID(int pid);
 // Función para liberar la memoria dinámica al cerrar el programa
 void cleanupProcesses();
 
+// Variables de control de la simulación (Para Shell CLI)
+extern bool is_simulation_running;
+extern int simulation_speed_ms;
+
 #endif // GLOBALS_H
