@@ -62,7 +62,6 @@ void* cliThreadRoutine(void* arg) {
             std::cout << "pause                            : Pausa el reloj de la CPU.\n";
             std::cout << "gantt                            : Imprime diagrama de Gantt actual.\n";
             std::cout << "stats                            : Muesta méticas globales del sistema.\n";
-            std::cout << "gui                              : despliega interfaz gráfica.\n";
             std::cout << "help                             : Muestra este manual.\n";
             std::cout << "exit                             : Libera memoria y cierra el simulador.\n";
             std::cout << "-------------------------------\n";
@@ -263,13 +262,6 @@ void* cliThreadRoutine(void* arg) {
                 continue;
             }
             printSystemStats();
-        }
-        else if (command == "gui") { // ESTO ES OPCIONAL 
-            if (args.size() > 1) {
-                std::cout << "[ERROR DE SINTAXIS]: El comando 'gui' no recibe parámetros.\n";
-                continue;
-            }
-            std::cout << "[INFO]: El comando 'gui' corresponde a la interfaz gráfica opcional (Bonus).\n";
         }
         // HELP ESTA ARRIBA DEL TODO PARA MEJOR LECTURA
         else if (command == "exit") {
