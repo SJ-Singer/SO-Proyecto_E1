@@ -44,7 +44,7 @@ void* cliThreadRoutine(void* arg) {
         // El primer token siempre es el comando principal
         std::string command = args[0];
 
-// --- VALIDACIÓN Y EJECUCIÓN DE COMANDOS ---
+        // --- VALIDACIÓN Y EJECUCIÓN DE COMANDOS (Ordenados según el menú 'help') ---
         
         if (command == "help") {
             if (args.size() > 1) {
@@ -62,21 +62,61 @@ void* cliThreadRoutine(void* arg) {
             std::cout << "pause                            : Pausa el reloj de la CPU.\n";
             std::cout << "gantt                            : Imprime diagrama de Gantt actual.\n";
             std::cout << "stats                            : Muesta méticas globales del sistema.\n";
-            std::cout << "gui                              : despliega interfaz gráfica.\n"; // ESTA ES OPCIONAL LA QUITAMOS SI NO LA VAMOS A HACER
+            std::cout << "gui                              : despliega interfaz gráfica.\n";
             std::cout << "help                             : Muestra este manual.\n";
             std::cout << "exit                             : Libera memoria y cierra el simulador.\n";
             std::cout << "-------------------------------\n";
         } 
-        else if (command == "exit") {
-            if (args.size() > 1) {
-                std::cout << "[ERROR DE SINTAXIS]: El comando 'exit' no recibe parámetros.\n";
+        else if (command == "create") {
+            // Validación 1: Cantidad de parámetros
+            if (args.size() < 3 || args.size() > 4) {
+                std::cout << "[ERROR DE SINTAXIS]: Parámetros insuficientes o excesivos.\n";
+                std::cout << "Uso correcto: create <nombre> <burst_time> [prioridad]\n";
                 continue;
             }
-            std::cout << "Cerrando la simulación y liberando memoria compartida...\n";
-            cleanupProcesses(); 
-            break; 
-        } 
-        // --- COMANDOS DE LA FASE 2 ---
+
+            std::string name = args[1];
+            int burst = 0;
+            int priority = 3; // Prioridad por defecto según requerimientos
+
+            // Validación 2: Tipos de datos numéricos y rangos
+            try {
+                burst = std::stoi(args[2]);
+                if (burst <= 0) {
+                    throw std::invalid_argument("Burst time debe ser mayor a 0");
+                }
+                
+                if (args.size() == 4) {
+                    priority = std::stoi(args[3]);
+                    if (priority < 1 || priority > 5) {
+                        throw std::invalid_argument("La prioridad debe estar entre 1 y 5");
+                    }
+                }
+            } catch (...) {
+                std::cout << "[ERROR DE TIPO]: 'burst' debe ser entero positivo y 'prioridad' un entero entre 1 y 5.\n";
+                continue;
+            }
+
+            // SECCIÓN CRÍTICA: Escritura en la memoria compartida
+            pthread_mutex_lock(&system_mutex);
+            
+            // Instanciamos el nuevo proceso utilizando el contador global
+            PCB* new_process = new PCB(next_pid, name, burst, priority, clock_ticks);
+            process_table.push_back(new_process);
+            next_pid++;
+            
+            std::cout << "Proceso '" << name << "' creado con éxito (PID: " << new_process->pid << ").\n";
+
+            pthread_mutex_unlock(&system_mutex);
+        }
+        else if (command == "load") { // FALTA ESTA LOGICA
+            if (args.size() != 2) {
+                std::cout << "[ERROR DE SINTAXIS]: Uso correcto: load <archivo>\n";
+                continue;
+            }
+            // TODO: Implementar lógica de carga por lotes desde archivo de traza
+            std::cout << "[INFO]: El comando 'load' está contemplado en el menú pero requiere la implementación del parser de archivos.\n";
+        }
         else if (command == "ps") {
             // Validación: ps no debe recibir argumentos adicionales
             if (args.size() > 1) {
@@ -138,69 +178,6 @@ void* cliThreadRoutine(void* arg) {
             // FIN SECCIÓN CRÍTICA: Desbloqueamos el mutex
             pthread_mutex_unlock(&system_mutex);
         }
-        // --- COMANDOS DE LA FASE 3 ---
-        else if (command == "create") {
-            // Validación 1: Cantidad de parámetros
-            if (args.size() < 3 || args.size() > 4) {
-                std::cout << "[ERROR DE SINTAXIS]: Parámetros insuficientes o excesivos.\n";
-                std::cout << "Uso correcto: create <nombre> <burst_time> [prioridad]\n";
-                continue;
-            }
-
-            std::string name = args[1];
-            int burst = 0;
-            int priority = 3; // Prioridad por defecto según requerimientos
-
-            // Validación 2: Tipos de datos numéricos y rangos
-            try {
-                burst = std::stoi(args[2]);
-                if (burst <= 0) {
-                    throw std::invalid_argument("Burst time debe ser mayor a 0");
-                }
-                
-                if (args.size() == 4) {
-                    priority = std::stoi(args[3]);
-                    if (priority < 1 || priority > 5) {
-                        throw std::invalid_argument("La prioridad debe estar entre 1 y 5");
-                    }
-                }
-            } catch (...) {
-                std::cout << "[ERROR DE TIPO]: 'burst' debe ser entero positivo y 'prioridad' un entero entre 1 y 5.\n";
-                continue;
-            }
-
-            // SECCIÓN CRÍTICA: Escritura en la memoria compartida
-            pthread_mutex_lock(&system_mutex);
-            
-            // Instanciamos el nuevo proceso utilizando el contador global
-            PCB* new_process = new PCB(next_pid, name, burst, priority, clock_ticks);
-            process_table.push_back(new_process);
-            next_pid++;
-            
-            std::cout << "Proceso '" << name << "' creado con éxito (PID: " << new_process->pid << ").\n";
-
-            pthread_mutex_unlock(&system_mutex);
-        }
-        else if (command == "start") {
-            if (args.size() > 1) {
-                std::cout << "[ERROR DE SINTAXIS]: El comando 'start' no recibe parámetros.\n";
-                continue;
-            }
-            pthread_mutex_lock(&system_mutex);
-            is_simulation_running = true;
-            pthread_mutex_unlock(&system_mutex);
-            std::cout << "Motor de Scheduling INICIADO/REANUDADO.\n";
-        }
-        else if (command == "pause") {
-            if (args.size() > 1) {
-                std::cout << "[ERROR DE SINTAXIS]: El comando 'pause' no recibe parámetros.\n";
-                continue;
-            }
-            pthread_mutex_lock(&system_mutex);
-            is_simulation_running = false;
-            pthread_mutex_unlock(&system_mutex);
-            std::cout << "Motor de Scheduling PAUSADO.\n";
-        }
         else if (command == "set_sched") {
             if (args.size() < 2 || args.size() > 3) {
                 std::cout << "[ERROR DE SINTAXIS]: Uso correcto: set_sched <RR|SRTF> [quantum]\n";
@@ -253,6 +230,26 @@ void* cliThreadRoutine(void* arg) {
             
             std::cout << "Velocidad de simulación ajustada a " << speed << " ms por tick.\n";
         }
+        else if (command == "start") {
+            if (args.size() > 1) {
+                std::cout << "[ERROR DE SINTAXIS]: El comando 'start' no recibe parámetros.\n";
+                continue;
+            }
+            pthread_mutex_lock(&system_mutex);
+            is_simulation_running = true;
+            pthread_mutex_unlock(&system_mutex);
+            std::cout << "Motor de Scheduling INICIADO/REANUDADO.\n";
+        }
+        else if (command == "pause") {
+            if (args.size() > 1) {
+                std::cout << "[ERROR DE SINTAXIS]: El comando 'pause' no recibe parámetros.\n";
+                continue;
+            }
+            pthread_mutex_lock(&system_mutex);
+            is_simulation_running = false;
+            pthread_mutex_unlock(&system_mutex);
+            std::cout << "Motor de Scheduling PAUSADO.\n";
+        }
         else if (command == "gantt") {
             if (args.size() > 1) {
                 std::cout << "[ERROR DE SINTAXIS]: El comando 'gantt' no recibe parámetros.\n";
@@ -267,9 +264,26 @@ void* cliThreadRoutine(void* arg) {
             }
             printSystemStats();
         }
+        else if (command == "gui") { // ESTO ES OPCIONAL 
+            if (args.size() > 1) {
+                std::cout << "[ERROR DE SINTAXIS]: El comando 'gui' no recibe parámetros.\n";
+                continue;
+            }
+            std::cout << "[INFO]: El comando 'gui' corresponde a la interfaz gráfica opcional (Bonus).\n";
+        }
+        // HELP ESTA ARRIBA DEL TODO PARA MEJOR LECTURA
+        else if (command == "exit") {
+            if (args.size() > 1) {
+                std::cout << "[ERROR DE SINTAXIS]: El comando 'exit' no recibe parámetros.\n";
+                continue;
+            }
+            std::cout << "Cerrando la simulación y liberando memoria compartida...\n";
+            cleanupProcesses(); 
+            break; 
+        } 
         else {
             std::cout << "[ERROR]: Comando no reconocido ('" << command << "'). Escriba 'help' para ver el manual.\n";
         }
     }
-return nullptr;
+    return nullptr;
 }

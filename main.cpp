@@ -6,6 +6,8 @@
 #include "cpuscheduler.h"
 #include "cli.h"
 
+//Elimine la parte de la rutina de los hilos pq deberia estar en los archivos correspondientes
+// no en el main, el main es quien los llama
 int main() {
     pthread_t cli_thread, cpu_thread;
 
