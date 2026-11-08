@@ -3,31 +3,11 @@
 #include <unistd.h>
 #include "pcb.h"
 #include "globals.h"
+#include "cpuscheduler.h"
+#include "cli.h"
 
-// Rutina del Hilo CLI (Interfaz de Usuario)
-void* cliThreadRoutine(void* arg) {
-    while (system_running) {
-        // El Miembro 2 implementará aquí la lectura y validación de la Shell
-        usleep(100000); 
-    }
-    return nullptr; // <--- Retorno explícito para evitar -Wreturn-type
-}
-
-// Rutina del Hilo Motor (CPU Scheduler)
-void* cpuThreadRoutine(void* arg) {
-    while (system_running) {
-        if (cpu_running) {
-            pthread_mutex_lock(&system_mutex);
-            // El Miembro 3 implementará aquí la lógica de consumo de ráfagas
-            clock_ticks++;
-            pthread_mutex_unlock(&system_mutex);
-        }
-        // Retardo por tick (Sección 6: set_speed por defecto 1000ms = 1s)
-        usleep(1000000); 
-    }
-    return nullptr; // <--- Retorno explícito para evitar -Wreturn-type
-}
-
+//Elimine la parte de la rutina de los hilos pq deberia estar en los archivos correspondientes
+// no en el main, el main es quien los llama
 int main() {
     pthread_t cli_thread, cpu_thread;
 
