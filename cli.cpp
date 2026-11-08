@@ -278,9 +278,19 @@ void* cliThreadRoutine(void* arg) {
                 continue;
             }
             std::cout << "Cerrando la simulación y liberando memoria compartida...\n";
+
+            // 1. Detener de forma limpia los hilos cambiando las banderas globales (protegidas por mutex)
+            pthread_mutex_lock(&system_mutex);
+            system_running = false;       // Hace que el hilo de la CPU y CLI salgan de sus 'while'
+            is_simulation_running = false; // Pausa cualquier cálculo pendiente
+            pthread_mutex_unlock(&system_mutex);
+
+            // 2. Liberar la memoria dinámica de los PCBs
             cleanupProcesses(); 
+
+            // 3. Romper el bucle de la CLI para finalizar el hilo
             break; 
-        } 
+        }
         else {
             std::cout << "[ERROR]: Comando no reconocido ('" << command << "'). Escriba 'help' para ver el manual.\n";
         }
