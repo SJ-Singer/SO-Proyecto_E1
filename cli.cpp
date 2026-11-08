@@ -1,12 +1,13 @@
 #include "cli.h"
 #include "globals.h"
+#include "cpuscheduler.h"
 #include <iostream>
 #include <string>
 #include <sstream>
 #include <vector>
 #include <iomanip>
 
-void* shell_loop(void* arg) {
+void* cliThreadRoutine(void* arg) {
     std::string line;
     
     std::cout << "\n=== Simulador de Kernel - Shell CLI Iniciada ===\n";
@@ -51,14 +52,19 @@ void* shell_loop(void* arg) {
                 continue;
             }
             std::cout << "\n--- MANUAL DE USUARIO (CLI) ---\n";
-            std::cout << "help                             : Muestra este manual.\n";
-            std::cout << "exit                             : Libera memoria y cierra el simulador.\n";
+            std::cout << "create <nombre> <burst> [prio]   : Crea un nuevo proceso.\n";
+            std::cout << "load <archivo>                   : Lee un archivo de traza e inserta sus procesos \n";
             std::cout << "ps                               : Despliega la tabla de procesos.\n";
             std::cout << "pcb <PID>                        : Muestra detalle extendido del PCB.\n";
-            std::cout << "create <nombre> <burst> [prio]   : Crea un nuevo proceso.\n";
+            std::cout << "set_sched <algoritmo> [quantum]  : Establece el algoritmo de planificacion (RR o SRTF)\n";
+            std::cout << "set_speed <ms_por_tick>          : Ajusta la velocidad del reloj.\n";
             std::cout << "start                            : Inicia/reanuda el Motor de CPU.\n";
             std::cout << "pause                            : Pausa el reloj de la CPU.\n";
-            std::cout << "set_speed <ms>                   : Ajusta la velocidad del reloj.\n";
+            std::cout << "gantt                            : Imprime diagrama de Gantt actual.\n";
+            std::cout << "stats                            : Muesta méticas globales del sistema.\n";
+            std::cout << "gui                              : despliega interfaz gráfica.\n"; // ESTA ES OPCIONAL LA QUITAMOS SI NO LA VAMOS A HACER
+            std::cout << "help                             : Muestra este manual.\n";
+            std::cout << "exit                             : Libera memoria y cierra el simulador.\n";
             std::cout << "-------------------------------\n";
         } 
         else if (command == "exit") {
@@ -195,6 +201,35 @@ void* shell_loop(void* arg) {
             pthread_mutex_unlock(&system_mutex);
             std::cout << "Motor de Scheduling PAUSADO.\n";
         }
+        else if (command == "set_sched") {
+            if (args.size() < 2 || args.size() > 3) {
+                std::cout << "[ERROR DE SINTAXIS]: Uso correcto: set_sched <RR|SRTF> [quantum]\n";
+                continue;
+            }
+
+            std::string algo = args[1];
+            int quantum = 2; // Valor por defecto exigido
+
+            if (args.size() == 3) {
+                try {
+                    quantum = std::stoi(args[2]);
+                } catch (...) {
+                    std::cout << "[ERROR DE TIPO]: El quantum debe ser un número entero positivo.\n";
+                    continue;
+                }
+            }
+
+            pthread_mutex_lock(&system_mutex);
+            bool success = setSchedulerPolicy(algo, quantum);
+            pthread_mutex_unlock(&system_mutex);
+
+            if (success) {
+                std::cout << "Algoritmo de planificación cambiado a " << algo 
+                        << " (Quantum: " << quantum << ").\n";
+            } else {
+                std::cout << "[ERROR DE PARAMETRO]: Algoritmo no reconocido o quantum inválido. Algoritmos válidos: RR, SRTF.\n";
+            }
+        }
         else if (command == "set_speed") {
             if (args.size() != 2) {
                 std::cout << "[ERROR DE SINTAXIS]: Uso correcto: set_speed <ms_por_tick>\n";
@@ -217,6 +252,20 @@ void* shell_loop(void* arg) {
             pthread_mutex_unlock(&system_mutex);
             
             std::cout << "Velocidad de simulación ajustada a " << speed << " ms por tick.\n";
+        }
+        else if (command == "gantt") {
+            if (args.size() > 1) {
+                std::cout << "[ERROR DE SINTAXIS]: El comando 'gantt' no recibe parámetros.\n";
+                continue;
+            }
+            printGanttDiagram();
+        }
+        else if (command == "stats") {
+            if (args.size() > 1) {
+                std::cout << "[ERROR DE SINTAXIS]: El comando 'stats' no recibe parámetros.\n";
+                continue;
+            }
+            printSystemStats();
         }
         else {
             std::cout << "[ERROR]: Comando no reconocido ('" << command << "'). Escriba 'help' para ver el manual.\n";
