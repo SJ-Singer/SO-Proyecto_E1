@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 #include <iomanip>
+#include <fstream>
 
 void* cliThreadRoutine(void* arg) {
     std::string line;
@@ -108,13 +109,81 @@ void* cliThreadRoutine(void* arg) {
 
             pthread_mutex_unlock(&system_mutex);
         }
-        else if (command == "load") { // FALTA ESTA LOGICA
+        else if (command == "load") { //Lógica del comando load
             if (args.size() != 2) {
                 std::cout << "[ERROR DE SINTAXIS]: Uso correcto: load <archivo>\n";
                 continue;
             }
-            // TODO: Implementar lógica de carga por lotes desde archivo de traza
-            std::cout << "[INFO]: El comando 'load' está contemplado en el menú pero requiere la implementación del parser de archivos.\n";
+            
+            std::string filename = args[1];
+            std::ifstream file(filename);
+
+            if (!file.is_open()) {
+                std::cout << "[ERROR]: No se pudo abrir el archivo '" << filename << "'. Verifique la ruta y el nombre.\n";
+                continue;
+            }
+
+            std::string file_line;
+            int loaded_count = 0;
+            int line_number = 0;
+
+            // Procesar el archivo línea por línea
+            while (std::getline(file, file_line)) {
+                line_number++;
+                
+                // Ignorar líneas vacías o comentarios (que empiecen con #)
+                if (file_line.empty() || file_line[0] == '#') {
+                    continue;
+                }
+
+                std::stringstream file_ss(file_line);
+                std::vector<std::string> file_args;
+                std::string file_token;
+
+                while (file_ss >> file_token) {
+                    file_args.push_back(file_token);
+                }
+
+                if (file_args.size() < 2 || file_args.size() > 3) {
+                    std::cout << "[ADVERTENCIA]: Línea " << line_number << " ignorada (formato incorrecto). Se esperaba: <nombre> <burst> [prioridad]\n";
+                    continue;
+                }
+
+                std::string name = file_args[0];
+                int burst = 0;
+                int priority = 3; 
+
+                try {
+                    burst = std::stoi(file_args[1]);
+                    if (burst <= 0) {
+                        throw std::invalid_argument("Burst negativo");
+                    }
+                    
+                    if (file_args.size() == 3) {
+                        priority = std::stoi(file_args[2]);
+                        if (priority < 1 || priority > 5) {
+                            throw std::invalid_argument("Prioridad fuera de rango");
+                        }
+                    }
+                } catch (...) {
+                    std::cout << "[ADVERTENCIA]: Línea " << line_number << " ignorada (tipos numéricos inválidos).\n";
+                    continue;
+                }
+
+                // SECCIÓN CRÍTICA: Instanciar y guardar de forma segura
+                pthread_mutex_lock(&system_mutex);
+                
+                PCB* new_process = new PCB(next_pid, name, burst, priority, clock_ticks);
+                process_table.push_back(new_process);
+                next_pid++;
+                
+                pthread_mutex_unlock(&system_mutex);
+                
+                loaded_count++;
+            }
+
+            file.close();
+            std::cout << "Carga por lotes exitosa. Se insertaron " << loaded_count << " procesos desde '" << filename << "'.\n";
         }
         else if (command == "ps") {
             // Validación: ps no debe recibir argumentos adicionales
