@@ -136,6 +136,11 @@ void* cliThreadRoutine(void* arg) {
                     continue;
                 }
 
+                // 1. Limpieza: Transformar comas en espacios para facilitar el parsing
+                for (char& c : file_line) {
+                    if (c == ',') c = ' ';
+                }
+
                 std::stringstream file_ss(file_line);
                 std::vector<std::string> file_args;
                 std::string file_token;
@@ -144,26 +149,30 @@ void* cliThreadRoutine(void* arg) {
                     file_args.push_back(file_token);
                 }
 
-                if (file_args.size() < 2 || file_args.size() > 3) {
-                    std::cout << "[ADVERTENCIA]: Línea " << line_number << " ignorada (formato incorrecto). Se esperaba: <nombre> <burst> [prioridad]\n";
+                // 2. Validación de 4 argumentos exactos
+                if (file_args.size() != 4) {
+                    std::cout << "[ADVERTENCIA]: Línea " << line_number << " ignorada (formato incorrecto). Se esperaba: <nombre>, <burst>, <prioridad>, <arrival_time>\n";
                     continue;
                 }
 
                 std::string name = file_args[0];
                 int burst = 0;
                 int priority = 3; 
+                int arrival = 0;
 
                 try {
                     burst = std::stoi(file_args[1]);
+                    priority = std::stoi(file_args[2]);
+                    arrival = std::stoi(file_args[3]);
+
                     if (burst <= 0) {
                         throw std::invalid_argument("Burst negativo");
                     }
-                    
-                    if (file_args.size() == 3) {
-                        priority = std::stoi(file_args[2]);
-                        if (priority < 1 || priority > 5) {
-                            throw std::invalid_argument("Prioridad fuera de rango");
-                        }
+                    if (priority < 1 || priority > 5) {
+                        throw std::invalid_argument("Prioridad fuera de rango");
+                    }
+                    if (arrival < 0) {
+                        throw std::invalid_argument("Tiempo de llegada negativo");
                     }
                 } catch (...) {
                     std::cout << "[ADVERTENCIA]: Línea " << line_number << " ignorada (tipos numéricos inválidos).\n";
@@ -173,7 +182,8 @@ void* cliThreadRoutine(void* arg) {
                 // SECCIÓN CRÍTICA: Instanciar y guardar de forma segura
                 pthread_mutex_lock(&system_mutex);
                 
-                PCB* new_process = new PCB(next_pid, name, burst, priority, clock_ticks);
+                // 3. Inyectar el arrival time del archivo en lugar del reloj global actual
+                PCB* new_process = new PCB(next_pid, name, burst, priority, arrival);
                 process_table.push_back(new_process);
                 next_pid++;
                 
